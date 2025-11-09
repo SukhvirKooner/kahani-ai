@@ -2,11 +2,10 @@
 
 </div>
 
-# Story Arc Engine
+# Kahani
 
-An AI-powered children's animation platform that transforms drawings and stories into animated videos using Google's Gemini AI.
+An AI-powered children's animation platform that transforms drawings and stories into animated videos.
 
-View the original app in AI Studio: https://ai.studio/apps/drive/136eOQ07rzrIOF4Sm8pUqnuwljMTs6D_q
 
 ## 🎯 Features
 
