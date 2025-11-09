@@ -1,4 +1,15 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Load environment variables
+// Get the directory of the current file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load .env from the backend directory (go up from src/services to backend root)
+dotenv.config({ path: join(__dirname, '../../.env') });
 
 const productionPlanSchema = {
   type: Type.OBJECT,
@@ -149,10 +160,13 @@ class GeminiService {
   private apiKey: string;
 
   constructor() {
-    const apiKey = "AIzaSyCKN0zd2fCrDjd2tEPdh4KpArVr4klCvGI";
+    // Debug: Check if env var is loaded
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey || apiKey.trim() === "") {
-      throw new Error("GEMINI_API_KEY environment variable is required but not set. Please set it in your .env file.");
+      console.error("❌ GEMINI_API_KEY is not set!");
+      console.error("Available env vars:", Object.keys(process.env).filter(k => k.includes('GEMINI') || k.includes('API')));
+      throw new Error("GEMINI_API_KEY environment variable is required but not set. Please set it in your .env file in the backend directory.");
     }
     this.apiKey = apiKey;
     console.log("✅ Initializing Gemini with API key (length:", apiKey.length, ")");
