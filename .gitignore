@@ -8,8 +8,6 @@ package-lock.json
 backend/dist/
 backend/.env
 backend/node_modules/
-backend/temp/
-backend/public/videos/
 
 # Logs
 *.log

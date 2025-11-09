@@ -152,29 +152,6 @@ class ApiService {
       method: 'DELETE',
     });
   }
-
-  // Video APIs
-  async combineVideos(videoUrls: string[]): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/videos/combine`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ videoUrls }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to combine videos' }));
-      throw new Error(error.error || 'Failed to combine videos');
-    }
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to combine videos');
-    }
-
-    return result.videoUrl;
-  }
 }
 
 export default new ApiService();

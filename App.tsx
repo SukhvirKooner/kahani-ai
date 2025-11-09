@@ -6,7 +6,7 @@ import InputForm from './components/InputForm';
 import ProductionPlanDisplay from './components/ProductionPlanDisplay';
 import CharacterInteraction from './components/CharacterInteraction';
 import apiService from './services/apiService';
-import { downloadVideo } from './utils/videoCombiner';
+import { combineVideos, downloadVideo } from './utils/videoCombiner';
 
 // Backend API is now used - no need for API key selector
 
@@ -146,7 +146,7 @@ const App: React.FC = () => {
     
     try {
       const validVideos = generatedVideos.filter(v => v !== null) as string[];
-      const combinedVideoUrl = await apiService.combineVideos(validVideos);
+      const combinedVideoUrl = await combineVideos(validVideos);
       setFinalCombinedVideo(combinedVideoUrl);
       setGenerationProgress("Videos combined successfully!");
       setTimeout(() => setGenerationProgress(null), 3000);
