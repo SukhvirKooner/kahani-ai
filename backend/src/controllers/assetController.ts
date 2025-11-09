@@ -17,7 +17,7 @@ export const generateCharacterModel = async (req: Request, res: Response) => {
         }
 
         // Create prompt for character model
-        const characterPrompt = `${plan.characterModel.action}. The character should be based on this description: "${plan.characterModel.source}"`;
+        const characterPrompt = `${plan.characterModel.action}. The character should be based on this description: "${plan.characterModel.source}". Style: 3D Disney Pixar animation style, high quality, vibrant colors, smooth textures, expressive features, professional animation quality.`;
 
         // Generate image
         const inputImage = imageBase64 && imageMimeType 

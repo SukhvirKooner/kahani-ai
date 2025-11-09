@@ -7,6 +7,10 @@ interface ProductionPlanDisplayProps {
     characterModelImage: string | null;
     generatedKeyframes: (string | null)[];
     generatedVideos: (string | null)[];
+    finalCombinedVideo: string | null;
+    isCombiningVideos: boolean;
+    onCombineVideos: () => void;
+    onDownloadVideo: (videoUrl: string, filename: string) => void;
 }
 
 const SectionCard: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => (
@@ -25,7 +29,16 @@ const LoadingSpinner: React.FC = () => (
     </div>
 );
 
-const ProductionPlanDisplay: React.FC<ProductionPlanDisplayProps> = ({ plan, characterModelImage, generatedKeyframes, generatedVideos }) => {
+const ProductionPlanDisplay: React.FC<ProductionPlanDisplayProps> = ({ 
+    plan, 
+    characterModelImage, 
+    generatedKeyframes, 
+    generatedVideos,
+    finalCombinedVideo,
+    isCombiningVideos,
+    onCombineVideos,
+    onDownloadVideo
+}) => {
     return (
         <div className="space-y-8">
             <h2 className="text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 mb-8">Your Production Plan</h2>
@@ -99,7 +112,68 @@ const ProductionPlanDisplay: React.FC<ProductionPlanDisplayProps> = ({ plan, cha
                  </div>
             </SectionCard>
 
-            <SectionCard title="6. Post-Processing & Audio" icon={<CheckCircleIcon />}>
+            <SectionCard title="6. Final Combined Video" icon={<FilmIcon />}>
+                <p className="text-gray-400 mb-4">Combine all 4 video clips into one complete story</p>
+                
+                {!finalCombinedVideo && (
+                    <div className="flex flex-col items-center space-y-4">
+                        <button
+                            onClick={onCombineVideos}
+                            disabled={isCombiningVideos || generatedVideos.some(v => !v)}
+                            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                                isCombiningVideos || generatedVideos.some(v => !v)
+                                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                            }`}
+                        >
+                            {isCombiningVideos ? 'Combining Videos...' : 'Combine All Videos'}
+                        </button>
+                        {generatedVideos.some(v => !v) && (
+                            <p className="text-sm text-gray-500">Please wait for all videos to be generated first</p>
+                        )}
+                    </div>
+                )}
+
+                {finalCombinedVideo && (
+                    <div className="space-y-4">
+                        <div className="w-full bg-black rounded-lg overflow-hidden">
+                            <video 
+                                src={finalCombinedVideo} 
+                                controls 
+                                className="w-full h-auto max-h-96"
+                                autoPlay
+                                loop
+                            >
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => onDownloadVideo(finalCombinedVideo, `${plan.storyAnalysis.hero}-complete-story.webm`)}
+                                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-all"
+                            >
+                                Download Final Video
+                            </button>
+                            <button
+                                onClick={() => {
+                                    generatedVideos.forEach((video, index) => {
+                                        if (video) {
+                                            setTimeout(() => {
+                                                onDownloadVideo(video, `${plan.storyAnalysis.hero}-clip-${index + 1}.webm`);
+                                            }, index * 200);
+                                        }
+                                    });
+                                }}
+                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all"
+                            >
+                                Download All Clips
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </SectionCard>
+
+            <SectionCard title="7. Post-Processing & Audio" icon={<CheckCircleIcon />}>
                 <p>{plan.postProcessing.action}</p>
             </SectionCard>
         </div>

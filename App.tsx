@@ -6,6 +6,7 @@ import InputForm from './components/InputForm';
 import ProductionPlanDisplay from './components/ProductionPlanDisplay';
 import CharacterInteraction from './components/CharacterInteraction';
 import apiService from './services/apiService';
+import { combineVideos, downloadVideo } from './utils/videoCombiner';
 
 // Backend API is now used - no need for API key selector
 
@@ -24,6 +25,8 @@ const App: React.FC = () => {
   const [characterModelImage, setCharacterModelImage] = useState<string | null>(null);
   const [generatedKeyframes, setGeneratedKeyframes] = useState<(string | null)[]>([]);
   const [generatedVideos, setGeneratedVideos] = useState<(string | null)[]>([]);
+  const [finalCombinedVideo, setFinalCombinedVideo] = useState<string | null>(null);
+  const [isCombiningVideos, setIsCombiningVideos] = useState<boolean>(false);
 
   const handleGenerate = async () => {
     if (!drawingDesc && !characterImage) {
@@ -61,7 +64,7 @@ const App: React.FC = () => {
       // 2. Generate Character Model using backend API
       setGenerationProgress("Generating character model...");
       const userImageForGeneration = characterImage ? { data: characterImage.split(',')[1], mimeType: characterImageMimeType! } : undefined;
-      const characterPrompt = `${plan.characterModel.action}. The character should be based on this description: "${plan.characterModel.source}"`;
+      const characterPrompt = `${plan.characterModel.action}. The character should be based on this description: "${plan.characterModel.source}". Style: 3D Disney Pixar animation style, high quality, vibrant colors, smooth textures, expressive features, professional animation quality.`;
       const charModelImgResult = await apiService.generateImage(characterPrompt, userImageForGeneration);
       const charModelImg = charModelImgResult.image;
       setCharacterModelImage(charModelImg);
@@ -73,7 +76,7 @@ const App: React.FC = () => {
       for (const [index, kf] of plan.staticKeyframes.keyframes.entries()) {
           setGenerationProgress(`Generating keyframe ${index + 1}/${plan.staticKeyframes.keyframes.length}...`);
           // Always use the first character model image for strict consistency
-          const keyframePrompt = `${kf.prompt}. Maintain EXACT character appearance consistency with the first character model image. The character's appearance, clothing, colors, and features must be identical to the character model.`;
+          const keyframePrompt = `${kf.prompt}. Style: 3D Disney Pixar animation style, high quality, vibrant colors, smooth textures, expressive features, professional animation quality. Maintain EXACT character appearance consistency with the first character model image. The character's appearance, clothing, colors, and features must be identical to the character model.`;
           const keyframeResult = await apiService.generateImage(keyframePrompt, charModelImgParts);
           const keyframeImg = keyframeResult.image;
           setGeneratedKeyframes(prev => {
@@ -112,6 +115,11 @@ const App: React.FC = () => {
       }
 
       setGenerationProgress("Your story is complete!");
+      
+      // Automatically combine videos when all are generated
+      if (plan.videoGeneration.clips.length === generatedVideos.filter(v => v !== null).length) {
+        // Videos will be combined when user clicks the combine button
+      }
 
     } catch (e) {
       console.error(e);
@@ -124,6 +132,39 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
       setTimeout(() => setGenerationProgress(null), 5000);
+    }
+  };
+
+  const handleCombineVideos = async () => {
+    if (generatedVideos.length === 0 || generatedVideos.some(v => !v)) {
+      setError("Please wait for all videos to be generated first.");
+      return;
+    }
+
+    setIsCombiningVideos(true);
+    setGenerationProgress("Combining videos into final story...");
+    
+    try {
+      const validVideos = generatedVideos.filter(v => v !== null) as string[];
+      const combinedVideoUrl = await combineVideos(validVideos);
+      setFinalCombinedVideo(combinedVideoUrl);
+      setGenerationProgress("Videos combined successfully!");
+      setTimeout(() => setGenerationProgress(null), 3000);
+    } catch (error) {
+      console.error('Error combining videos:', error);
+      setError(error instanceof Error ? error.message : "Failed to combine videos. Please try again.");
+      setGenerationProgress(null);
+    } finally {
+      setIsCombiningVideos(false);
+    }
+  };
+
+  const handleDownloadVideo = (videoUrl: string, filename: string) => {
+    try {
+      downloadVideo(videoUrl, filename);
+    } catch (error) {
+      console.error('Error downloading video:', error);
+      setError("Failed to download video. Please try again.");
     }
   };
 
@@ -170,6 +211,10 @@ const App: React.FC = () => {
                 characterModelImage={characterModelImage}
                 generatedKeyframes={generatedKeyframes}
                 generatedVideos={generatedVideos}
+                finalCombinedVideo={finalCombinedVideo}
+                isCombiningVideos={isCombiningVideos}
+                onCombineVideos={handleCombineVideos}
+                onDownloadVideo={handleDownloadVideo}
             />
             <CharacterInteraction 
               persona={productionPlan.storyAnalysis.characterPersona} 

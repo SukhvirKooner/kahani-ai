@@ -107,13 +107,14 @@ export const generateProductionPlan = async (drawing: string, parentPrompt: stri
         4.  I2V Workflow:
             - A 'gemini-2.5-flash-image' model is used to first create a master character avatar based on the user's drawing, and then to generate 4 static keyframes (one for each scene), placing the hero avatar into the scene.
             - A 'veo-3.1-fast-generate-preview' model is used in I2V mode to animate each of the 4 static keyframes for 8 seconds.
-        5.  Consistency: The Hero's appearance (based on the input drawing) MUST be EXACTLY consistent across all clips. Use the FIRST character model image as the strict reference for all keyframes and videos. The character's appearance, clothing, colors, and features must remain identical.
-        6.  Episode Script Requirements:
+        5.  Visual Style: ALL images (character model and all keyframes) MUST be in 3D Disney Pixar animation style. This means: high quality 3D rendering, vibrant colors, smooth textures, expressive features, professional animation quality, similar to Disney/Pixar animated films like Toy Story, Finding Nemo, or Inside Out.
+        6.  Consistency: The Hero's appearance (based on the input drawing) MUST be EXACTLY consistent across all clips. Use the FIRST character model image as the strict reference for all keyframes and videos. The character's appearance, clothing, colors, and features must remain identical.
+        7.  Episode Script Requirements:
             - Each scene MUST have "dialog" (the actual words the hero character speaks).
             - The "dialog" field should contain direct speech that the character will say in the video, suitable for an 8-second clip.
             - Dialogs should be age-appropriate, engaging, and match the character's personality.
             - Each scene's dialog should be unique and specific to that scene's story moment.
-        7.  Output: You MUST output a single, valid JSON object that strictly adheres to the provided schema. Do not include any text, markdown formatting, or explanations outside of the JSON object.
+        8.  Output: You MUST output a single, valid JSON object that strictly adheres to the provided schema. Do not include any text, markdown formatting, or explanations outside of the JSON object.
 
         Execute the following 6-step flow based on the inputs below. ALL generated text content (story, script, prompts, etc.) must be in the specified language.
 
