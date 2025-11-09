@@ -58,6 +58,7 @@ const InputForm: React.FC<InputFormProps> = ({
     // Camera capture state
     const [showCamera, setShowCamera] = useState(false);
     const [cameraError, setCameraError] = useState<string | null>(null);
+    const [cameraReady, setCameraReady] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
 
@@ -74,6 +75,12 @@ const InputForm: React.FC<InputFormProps> = ({
     const startCamera = async () => {
         try {
             setCameraError(null);
+            setCameraReady(false);
+            setShowCamera(true); // Show modal first so video element is mounted
+            
+            // Wait a bit for the video element to be available
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
                     facingMode: 'environment', // Use back camera if available
@@ -82,13 +89,28 @@ const InputForm: React.FC<InputFormProps> = ({
                 } 
             });
             streamRef.current = stream;
+            
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
+                // Ensure video plays
+                videoRef.current.onloadedmetadata = () => {
+                    if (videoRef.current) {
+                        videoRef.current.play()
+                            .then(() => {
+                                setCameraReady(true);
+                            })
+                            .catch(err => {
+                                console.error('Error playing video:', err);
+                                setCameraError('Failed to start camera preview.');
+                            });
+                    }
+                };
             }
-            setShowCamera(true);
         } catch (error) {
             console.error('Error accessing camera:', error);
             setCameraError('Unable to access camera. Please check permissions or try uploading an image instead.');
+            setShowCamera(false); // Hide modal on error
+            setCameraReady(false);
         }
     };
 
@@ -99,6 +121,7 @@ const InputForm: React.FC<InputFormProps> = ({
         }
         setShowCamera(false);
         setCameraError(null);
+        setCameraReady(false);
     };
 
     const capturePhoto = () => {
@@ -179,14 +202,30 @@ const InputForm: React.FC<InputFormProps> = ({
                             {showCamera && (
                                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
                                     <div className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full">
-                                        <div className="relative">
+                                        <div className="relative bg-black rounded-lg overflow-hidden">
                                             <video
                                                 ref={videoRef}
                                                 autoPlay
                                                 playsInline
+                                                muted
                                                 className="w-full rounded-lg"
-                                                style={{ maxHeight: '70vh' }}
+                                                style={{ maxHeight: '70vh', display: 'block' }}
+                                                onLoadedMetadata={() => {
+                                                    if (videoRef.current) {
+                                                        videoRef.current.play().catch(err => {
+                                                            console.error('Error playing video:', err);
+                                                        });
+                                                    }
+                                                }}
                                             />
+                                            {!cameraReady && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                                                    <div className="text-center">
+                                                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto"></div>
+                                                        <p className="mt-4 text-purple-300">Starting camera...</p>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex gap-4 mt-4 justify-center">
                                             <button
