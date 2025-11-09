@@ -2,12 +2,18 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { connectDatabase } from './config/database.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { apiLimiter, strictLimiter } from './middleware/rateLimiter.js';
 import productionPlanRoutes from './routes/productionPlanRoutes.js';
 import geminiRoutes from './routes/geminiRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
+import videoRoutes from './routes/videoRoutes.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables
 // dotenv.config() automatically looks for .env in the current working directory
@@ -75,6 +81,10 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Rate limiting
 app.use('/api/', apiLimiter);
 
+// Serve static files (combined videos)
+const videosDir = path.join(process.cwd(), 'public', 'videos');
+app.use('/videos', express.static(videosDir));
+
 // Root endpoint - API information
 app.get('/', (req, res) => {
   res.json({
@@ -85,7 +95,8 @@ app.get('/', (req, res) => {
       health: '/health',
       productionPlans: '/api/production-plans',
       gemini: '/api/gemini',
-      chat: '/api/chat'
+      chat: '/api/chat',
+      videos: '/api/videos'
     },
     timestamp: new Date().toISOString()
   });
@@ -104,6 +115,7 @@ app.get('/health', (req, res) => {
 app.use('/api/production-plans', productionPlanRoutes);
 app.use('/api/gemini', strictLimiter, geminiRoutes); // Stricter rate limit for AI generation
 app.use('/api/chat', chatRoutes);
+app.use('/api/videos', videoRoutes);
 
 // Error handling
 app.use(notFound);

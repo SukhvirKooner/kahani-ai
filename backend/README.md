@@ -17,6 +17,7 @@ A secure Node.js/Express backend server for the Story Arc Engine application wit
 
 - Node.js >= 20.0.0
 - MongoDB >= 4.4 (local or cloud instance)
+- FFmpeg (for video combining) - See [FFMPEG_SETUP.md](./FFMPEG_SETUP.md) for installation instructions
 - Gemini API Key with access to:
   - `gemini-2.5-pro`
   - `gemini-2.5-flash`
@@ -169,6 +170,33 @@ Content-Type: application/json
   "keyframeImage": "data:image/png;base64,..."
 }
 ```
+
+### Video Operations
+
+#### Combine Videos
+```
+POST /api/videos/combine
+Content-Type: application/json
+
+{
+  "videoUrls": [
+    "https://example.com/video1.mp4",
+    "https://example.com/video2.mp4",
+    "https://example.com/video3.mp4"
+  ]
+}
+```
+
+Returns:
+```json
+{
+  "success": true,
+  "videoUrl": "http://localhost:5000/videos/combined_abc123.mp4",
+  "message": "Videos combined successfully"
+}
+```
+
+The combined video is accessible at the returned URL and can be displayed in a `<video>` tag.
 
 ### Chat System
 
