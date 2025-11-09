@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Language } from '../types';
 import { Language as LanguageEnum } from '../types';
-import { PhotoIcon, XMarkIcon } from './icons/Icons';
+import { PhotoIcon, XMarkIcon, CameraIcon } from './icons/Icons';
 
 interface InputFormProps {
     drawingDesc: string;
@@ -55,6 +55,69 @@ const InputForm: React.FC<InputFormProps> = ({
         setCharacterImageMimeType(null);
     };
 
+    // Camera capture state
+    const [showCamera, setShowCamera] = useState(false);
+    const [cameraError, setCameraError] = useState<string | null>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+
+    // Clean up camera stream when component unmounts or camera closes
+    useEffect(() => {
+        return () => {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
+            }
+        };
+    }, []);
+
+    const startCamera = async () => {
+        try {
+            setCameraError(null);
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment', // Use back camera if available
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+            setShowCamera(true);
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            setCameraError('Unable to access camera. Please check permissions or try uploading an image instead.');
+        }
+    };
+
+    const stopCamera = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        setShowCamera(false);
+        setCameraError(null);
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current) {
+            const video = videoRef.current;
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(video, 0, 0);
+                const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+                setCharacterImage(dataURL);
+                setCharacterImageMimeType('image/jpeg');
+                stopCamera();
+            }
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div>
@@ -74,23 +137,77 @@ const InputForm: React.FC<InputFormProps> = ({
                             </button>
                         </div>
                     ) : (
-                        <div
-                            className="relative block w-full border-2 border-gray-500 border-dashed rounded-lg p-8 text-center hover:border-purple-400 transition-colors"
-                        >
-                            <div className="flex flex-col items-center justify-center">
-                                <PhotoIcon />
-                                <span className="mt-2 block text-sm font-semibold text-gray-400">
-                                    Upload a drawing
-                                </span>
+                        <>
+                            <div className="flex gap-3">
+                                <div
+                                    className="relative flex-1 border-2 border-gray-500 border-dashed rounded-lg p-6 text-center hover:border-purple-400 transition-colors cursor-pointer"
+                                    onClick={() => document.getElementById('file-input')?.click()}
+                                >
+                                    <div className="flex flex-col items-center justify-center">
+                                        <PhotoIcon />
+                                        <span className="mt-2 block text-sm font-semibold text-gray-400">
+                                            Upload a drawing
+                                        </span>
+                                    </div>
+                                    <input
+                                        id="file-input"
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={handleFileChange}
+                                        aria-label="Upload character drawing"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={startCamera}
+                                    className="flex-1 border-2 border-gray-500 border-dashed rounded-lg p-6 text-center hover:border-purple-400 transition-colors flex flex-col items-center justify-center"
+                                >
+                                    <CameraIcon />
+                                    <span className="mt-2 block text-sm font-semibold text-gray-400">
+                                        Take a photo
+                                    </span>
+                                </button>
                             </div>
-                            <input
-                                type="file"
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                accept="image/*"
-                                onChange={handleFileChange}
-                                aria-label="Upload character drawing"
-                            />
-                        </div>
+                            
+                            {cameraError && (
+                                <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-300 text-sm">
+                                    {cameraError}
+                                </div>
+                            )}
+
+                            {showCamera && (
+                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+                                    <div className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full">
+                                        <div className="relative">
+                                            <video
+                                                ref={videoRef}
+                                                autoPlay
+                                                playsInline
+                                                className="w-full rounded-lg"
+                                                style={{ maxHeight: '70vh' }}
+                                            />
+                                        </div>
+                                        <div className="flex gap-4 mt-4 justify-center">
+                                            <button
+                                                type="button"
+                                                onClick={capturePhoto}
+                                                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-all"
+                                            >
+                                                Capture Photo
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={stopCamera}
+                                                className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-all"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                     
                     <div>
