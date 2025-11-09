@@ -1,30 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
 import type { ProductionPlan } from './types';
 import { Language } from './types';
 import Header from './components/Header';
 import InputForm from './components/InputForm';
 import ProductionPlanDisplay from './components/ProductionPlanDisplay';
 import CharacterInteraction from './components/CharacterInteraction';
-import { generateProductionPlan, generateImage, generateVideo } from './services/geminiService';
-import ApiKeySelector from './components/ApiKeySelector';
+import apiService from './services/apiService';
 
-// This is a mock of the window.aistudio object for development purposes
-if (typeof window !== 'undefined' && !(window as any).aistudio) {
-  (window as any).aistudio = {
-    openSelectKey: async () => {
-      console.log("Mock: Opening API key selection dialog.");
-      // Simulate user selecting a key
-      (window as any).aistudio.selectedKey = true;
-      return Promise.resolve();
-    },
-    hasSelectedApiKey: async () => {
-      console.log("Mock: Checking for selected API key.");
-      return Promise.resolve((window as any).aistudio.selectedKey || false);
-    },
-    selectedKey: false,
-  };
-}
+// Backend API is now used - no need for API key selector
 
 const App: React.FC = () => {
   const [drawingDesc, setDrawingDesc] = useState<string>('');
@@ -35,25 +18,12 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [productionPlan, setProductionPlan] = useState<ProductionPlan | null>(null);
-  const [hasVeoApiKey, setHasVeoApiKey] = useState(false);
 
   // New state for generated assets and progress
   const [generationProgress, setGenerationProgress] = useState<string | null>(null);
   const [characterModelImage, setCharacterModelImage] = useState<string | null>(null);
   const [generatedKeyframes, setGeneratedKeyframes] = useState<(string | null)[]>([]);
   const [generatedVideos, setGeneratedVideos] = useState<(string | null)[]>([]);
-
-
-  const checkApiKey = useCallback(async () => {
-    const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-    setHasVeoApiKey(hasKey);
-  }, []);
-
-  useEffect(() => {
-    checkApiKey();
-    const interval = setInterval(checkApiKey, 2000); // Periodically check for key selection
-    return () => clearInterval(interval);
-  }, [checkApiKey]);
 
   const handleGenerate = async () => {
     if (!drawingDesc && !characterImage) {
@@ -65,11 +35,6 @@ const App: React.FC = () => {
       return;
     }
 
-    if (!hasVeoApiKey) {
-        setError("Please select a Veo API key before generating the story.");
-        return;
-    }
-
     setIsLoading(true);
     setError(null);
     setProductionPlan(null);
@@ -79,26 +44,38 @@ const App: React.FC = () => {
     setGeneratedVideos([]);
 
     try {
-      // 1. Generate Production Plan
+      // 1. Generate Production Plan using backend API
       const imageBase64 = characterImage ? characterImage.split(',')[1] : null;
-      const plan = await generateProductionPlan(drawingDesc, parentPrompt, language, imageBase64, characterImageMimeType);
+      const result = await apiService.generateProductionPlan(
+        drawingDesc, 
+        parentPrompt, 
+        language, 
+        imageBase64, 
+        characterImageMimeType
+      );
+      const plan = result as unknown as ProductionPlan;
       setProductionPlan(plan);
       setGeneratedKeyframes(new Array(plan.staticKeyframes.keyframes.length).fill(null));
       setGeneratedVideos(new Array(plan.videoGeneration.clips.length).fill(null));
 
-      // 2. Generate Character Model
+      // 2. Generate Character Model using backend API
       setGenerationProgress("Generating character model...");
       const userImageForGeneration = characterImage ? { data: characterImage.split(',')[1], mimeType: characterImageMimeType! } : undefined;
       const characterPrompt = `${plan.characterModel.action}. The character should be based on this description: "${plan.characterModel.source}"`;
-      const charModelImg = await generateImage(characterPrompt, userImageForGeneration);
+      const charModelImgResult = await apiService.generateImage(characterPrompt, userImageForGeneration);
+      const charModelImg = charModelImgResult.image;
       setCharacterModelImage(charModelImg);
 
-      // 3. Generate Keyframes sequentially
+      // 3. Generate Keyframes sequentially using backend API
+      // Use the FIRST character model image strictly for all keyframes to ensure consistency
       const allKeyframes: string[] = [];
       const charModelImgParts = { data: charModelImg.split(',')[1], mimeType: charModelImg.match(/:(.*?);/)?.[1]! };
       for (const [index, kf] of plan.staticKeyframes.keyframes.entries()) {
           setGenerationProgress(`Generating keyframe ${index + 1}/${plan.staticKeyframes.keyframes.length}...`);
-          const keyframeImg = await generateImage(kf.prompt, charModelImgParts);
+          // Always use the first character model image for strict consistency
+          const keyframePrompt = `${kf.prompt}. Maintain EXACT character appearance consistency with the first character model image. The character's appearance, clothing, colors, and features must be identical to the character model.`;
+          const keyframeResult = await apiService.generateImage(keyframePrompt, charModelImgParts);
+          const keyframeImg = keyframeResult.image;
           setGeneratedKeyframes(prev => {
               const newKeyframes = [...prev];
               newKeyframes[index] = keyframeImg;
@@ -107,14 +84,26 @@ const App: React.FC = () => {
           allKeyframes.push(keyframeImg);
       }
 
-      // 4. Generate Videos sequentially
+      // 4. Generate Videos sequentially using backend API with character dialog
       for (const [index, clip] of plan.videoGeneration.clips.entries()) {
           setGenerationProgress(`Animating clip ${index + 1}/${plan.videoGeneration.clips.length}...`);
           // The clip input is "Static Keyframe #1", so we extract the index.
           const keyframeIndex = parseInt(clip.input.split('#')[1] || '1') - 1;
           const keyframeForVideo = allKeyframes[keyframeIndex];
 
-          const videoUrl = await generateVideo(clip.prompt, keyframeForVideo);
+          // Match clip to scene by clip number (clips are 1-indexed, so clip.clip - 1 = scene index)
+          // Ensure we use the correct scene for this clip, not just the keyframe index
+          const sceneIndex = clip.clip - 1; // clip.clip is 1-indexed, convert to 0-indexed
+          const correspondingScene = plan.episodeScript.scenes[sceneIndex];
+          
+          // Use dialog (what character speaks)
+          const sceneDialog = correspondingScene ? correspondingScene.dialog : '';
+          
+          // Enhanced prompt with character dialog - use first character model image for strict consistency
+          const enhancedPrompt = `${clip.prompt}. The character ${plan.storyAnalysis.hero} is speaking: "${sceneDialog}". Show expressive mouth movements and gestures that match the dialog. Maintain EXACT character appearance consistency with the first character model image.`;
+
+          const videoResult = await apiService.generateVideo(enhancedPrompt, keyframeForVideo);
+          const videoUrl = videoResult.videoUrl;
            setGeneratedVideos(prev => {
               const newVideos = [...prev];
               newVideos[index] = videoUrl;
@@ -129,13 +118,6 @@ const App: React.FC = () => {
       let errorMessage = "An unknown error occurred during generation.";
       if (e instanceof Error) {
         errorMessage = e.message;
-        if (errorMessage.includes("API key not valid")) {
-            errorMessage = "The provided API key is not valid. Please select a valid key.";
-            setHasVeoApiKey(false); // Reset key status on auth error
-        } else if(errorMessage.includes("Requested entity was not found")){
-            errorMessage = "Project not found or API key is invalid. Please select your API key again.";
-            setHasVeoApiKey(false); // Reset key status
-        }
       }
       setError(errorMessage);
       setGenerationProgress(null);
@@ -160,12 +142,11 @@ const App: React.FC = () => {
             setLanguage={setLanguage}
             onGenerate={handleGenerate}
             isLoading={isLoading}
-            hasVeoApiKey={hasVeoApiKey}
+            hasVeoApiKey={true}
             characterImage={characterImage}
             setCharacterImage={setCharacterImage}
             setCharacterImageMimeType={setCharacterImageMimeType}
           />
-          <ApiKeySelector hasKey={hasVeoApiKey} setHasKey={setHasVeoApiKey} />
 
           {isLoading && (
             <div className="text-center my-8">

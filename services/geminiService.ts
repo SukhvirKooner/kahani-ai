@@ -39,9 +39,9 @@ const productionPlanSchema = {
                         properties: {
                             scene: { type: Type.INTEGER },
                             title: { type: Type.STRING },
-                            narration: { type: Type.STRING }
+                            dialog: { type: Type.STRING, description: "The actual words the hero character speaks in this scene. Should be direct speech in first person, suitable for an 8-second video clip." }
                         },
-                        required: ['scene', 'title', 'narration']
+                        required: ['scene', 'title', 'dialog']
                     }
                 }
             },
@@ -107,8 +107,13 @@ export const generateProductionPlan = async (drawing: string, parentPrompt: stri
         4.  I2V Workflow:
             - A 'gemini-2.5-flash-image' model is used to first create a master character avatar based on the user's drawing, and then to generate 4 static keyframes (one for each scene), placing the hero avatar into the scene.
             - A 'veo-3.1-fast-generate-preview' model is used in I2V mode to animate each of the 4 static keyframes for 8 seconds.
-        5.  Consistency: The Hero's appearance (based on the input drawing) and scenery must be consistent across clips.
-        6.  Output: You MUST output a single, valid JSON object that strictly adheres to the provided schema. Do not include any text, markdown formatting, or explanations outside of the JSON object.
+        5.  Consistency: The Hero's appearance (based on the input drawing) MUST be EXACTLY consistent across all clips. Use the FIRST character model image as the strict reference for all keyframes and videos. The character's appearance, clothing, colors, and features must remain identical.
+        6.  Episode Script Requirements:
+            - Each scene MUST have "dialog" (the actual words the hero character speaks).
+            - The "dialog" field should contain direct speech that the character will say in the video, suitable for an 8-second clip.
+            - Dialogs should be age-appropriate, engaging, and match the character's personality.
+            - Each scene's dialog should be unique and specific to that scene's story moment.
+        7.  Output: You MUST output a single, valid JSON object that strictly adheres to the provided schema. Do not include any text, markdown formatting, or explanations outside of the JSON object.
 
         Execute the following 6-step flow based on the inputs below. ALL generated text content (story, script, prompts, etc.) must be in the specified language.
 

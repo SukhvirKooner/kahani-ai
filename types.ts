@@ -21,7 +21,7 @@ export interface StoryAnalysis {
 export interface Scene {
     scene: number;
     title: string;
-    narration: string;
+    dialog: string;
 }
 
 export interface EpisodeScript {

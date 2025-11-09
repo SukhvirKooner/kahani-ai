@@ -57,7 +57,7 @@ const ProductionPlanDisplay: React.FC<ProductionPlanDisplayProps> = ({ plan, cha
                     {plan.episodeScript.scenes.map(scene => (
                         <div key={scene.scene} className="p-4 bg-gray-900/70 rounded-lg">
                             <h4 className="font-semibold text-purple-400">{scene.title} (Scene {scene.scene})</h4>
-                            <p className="italic text-gray-400">"{scene.narration}"</p>
+                            <p className="text-purple-300 font-medium">Character says: <span className="text-white">"{scene.dialog}"</span></p>
                         </div>
                     ))}
                 </div>
