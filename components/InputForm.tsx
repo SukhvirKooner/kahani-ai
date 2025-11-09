@@ -162,25 +162,25 @@ const InputForm: React.FC<InputFormProps> = ({
                     ) : (
                         <>
                             <div className="flex gap-3">
-                                <div
+                        <div
                                     className="relative flex-1 border-2 border-gray-500 border-dashed rounded-lg p-6 text-center hover:border-purple-400 transition-colors cursor-pointer"
                                     onClick={() => document.getElementById('file-input')?.click()}
-                                >
-                                    <div className="flex flex-col items-center justify-center">
-                                        <PhotoIcon />
-                                        <span className="mt-2 block text-sm font-semibold text-gray-400">
-                                            Upload a drawing
-                                        </span>
-                                    </div>
-                                    <input
+                        >
+                            <div className="flex flex-col items-center justify-center">
+                                <PhotoIcon />
+                                <span className="mt-2 block text-sm font-semibold text-gray-400">
+                                    Upload a drawing
+                                </span>
+                            </div>
+                            <input
                                         id="file-input"
-                                        type="file"
+                                type="file"
                                         className="hidden"
-                                        accept="image/*"
-                                        onChange={handleFileChange}
-                                        aria-label="Upload character drawing"
-                                    />
-                                </div>
+                                accept="image/*"
+                                onChange={handleFileChange}
+                                aria-label="Upload character drawing"
+                            />
+                        </div>
                                 <button
                                     type="button"
                                     onClick={startCamera}

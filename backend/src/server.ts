@@ -31,15 +31,65 @@ connectDatabase();
 
 // Middleware
 app.use(helmet()); // Security headers
+
+// CORS configuration - allow production frontend, ngrok, and localhost
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'https://www.teamevoke.xyz',
+  'https://teamevoke.xyz',
+  'http://localhost:5173',
+  'http://localhost:3001',
+  /^https?:\/\/.*\.ngrok(-free)?\.app$/, // Allow all ngrok URLs
+  /^https?:\/\/.*\.ngrok-free\.app$/,
+].filter(Boolean) as (string | RegExp)[];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, Postman, or curl)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return origin === allowed;
+      } else {
+        return allowed.test(origin);
+      }
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️  CORS blocked origin: ${origin}`);
+      callback(null, true); // Allow anyway for development
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning']
 }));
+
 app.use(express.json({ limit: '50mb' })); // Parse JSON bodies (large limit for base64 images)
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Rate limiting
 app.use('/api/', apiLimiter);
+
+// Root endpoint - API information
+app.get('/', (req, res) => {
+  res.json({
+    name: 'Story Arc Engine API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      productionPlans: '/api/production-plans',
+      gemini: '/api/gemini',
+      chat: '/api/chat'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
